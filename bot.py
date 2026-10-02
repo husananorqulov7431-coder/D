@@ -23,32 +23,26 @@ async def synthesize(text: str, output: Path) -> None:
 async def send_audio_parts(message: Message, text: str) -> None:
     chunks = split_text(text, MAX_CHARS)
     status = await message.answer(
-        f"Tayyorlanmoqda...
-Qismlar: {len(chunks)}
-"
-        f"Limit: {MAX_CHARS:,} belgi
-Voice: {VOICE}"
+        f"Tayyorlanmoqda...\nQismlar: {len(chunks)}\n"
+        f"Limit: {MAX_CHARS:,} belgi\nVoice: {VOICE}"
     )
 
     with tempfile.TemporaryDirectory() as td:
-        tasks = []
+        outputs = []
         for index, chunk in enumerate(chunks, 1):
             output = Path(td) / f"part_{index:03d}.mp3"
-            tasks.append(asyncio.create_task(synthesize(chunk, output)))
+            await synthesize(chunk, output)
+            outputs.append((index, chunk, output))
 
-        results = await asyncio.gather(*tasks)
-
-        for index, (chunk, _) in enumerate(zip(chunks, results), 1):
-            output = Path(td) / f"part_{index:03d}.mp3"
+        for index, chunk, output in outputs:
             await message.answer_audio(
                 FSInputFile(output),
-                caption=f"{index}-qism / {len(chunks)} | {len(chunk):,} belgi | G2P → Madina"
+                caption=f"{index}-qism / {len(chunks)} | {len(chunk):,} belgi | G2P -> Madina",
             )
 
     await status.edit_text(
-        f"Tayyor: {len(chunks)} ta qism.
-"
-        "G2P preprocessing → uz-UZ-MadinaNeural → MP3"
+        f"Tayyor: {len(chunks)} ta qism.\n"
+        "G2P preprocessing -> uz-UZ-MadinaNeural -> MP3"
     )
 
 async def main() -> None:
@@ -61,11 +55,8 @@ async def main() -> None:
     @dp.message(CommandStart())
     async def start(message: Message) -> None:
         await message.answer(
-            "Assalomu alaykum!
-
-"
-            "Oddiy matn yoki TXT fayl yuboring.
-"
+            "Assalomu alaykum!\n\n"
+            "Oddiy matn yoki TXT fayl yuboring.\n"
             f"Matn {MAX_CHARS:,} belgigacha qismlarga bo'linadi, "
             "G2P/preprocessing qilinadi va Madina ovozida MP3 yuboriladi."
         )

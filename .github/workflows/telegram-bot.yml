@@ -1,0 +1,31 @@
+name: Telegram TTS Bot
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: telegram-tts-bot
+  cancel-in-progress: true
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start Telegram bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          EDGE_VOICE: uz-UZ-MadinaNeural
+          EDGE_RATE: +10%
+        run: python bot.py

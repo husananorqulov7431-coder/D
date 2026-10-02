@@ -94,9 +94,11 @@ def _pause_hyphenated_words(text: str) -> str:
 
 def prepare_for_tts(text: str) -> str:
     text = normalize_text(text)
+    # Convert pauses in the original text before creating pronunciation hyphens.
+    # Generated syllable hyphens must stay intact for Edge TTS.
+    text = _pause_hyphenated_words(text)
     text = _replace_special_tokens(text)
     text = _replace_known_terms(text)
-    text = _pause_hyphenated_words(text)
     text = re.sub(r"\s*;\s*", "; ", text)
     text = re.sub(r"\s*:\s*", ": ", text)
     text = re.sub(r"\s+", " ", text)

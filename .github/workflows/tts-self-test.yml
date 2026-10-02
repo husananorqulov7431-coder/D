@@ -1,0 +1,70 @@
+name: TTS Self Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile
+        run: python -m py_compile pronunciation.py bot.py
+
+      - name: G2P preprocessing tests
+        run: |
+          python - <<'PY'
+          from pronunciation import prepare_for_tts, split_text
+
+          cases = {
+              "mRNK": "em-er-en-ka",
+              "DNK": "de-en-ka",
+              "RNK": "er-en-ka",
+              "antigen-antitelo": "antigen; antitelo",
+              "glomerulonefrit": "glo-me-ru-lo-nef-rit",
+          }
+
+          for source, expected in cases.items():
+              got = prepare_for_tts(source)
+              assert expected.lower() in got.lower(), (source, got)
+              print(f"PASS: {source} -> {got}")
+
+          assert prepare_for_tts("2025-2026") == "2025-2026"
+
+          long_text = "So'z. " * 5000
+          chunks = split_text(long_text)
+          assert chunks and all(len(chunk) <= 14800 for chunk in chunks)
+          print(f"PASS: {len(chunks)} chunks")
+          PY
+
+      - name: Edge TTS smoke test
+        run: |
+          python - <<'PY'
+          import asyncio
+          from pathlib import Path
+          import edge_tts
+          from pronunciation import prepare_for_tts
+
+          async def main():
+              text = prepare_for_tts(
+                  "mRNK antigen-antitelo glomerulonefrit DNK RNK ATP."
+              )
+              output = Path("smoke.mp3")
+              await edge_tts.Communicate(
+                  text, "uz-UZ-MadinaNeural", rate="+10%"
+              ).save(str(output))
+              assert output.exists() and output.stat().st_size > 1000
+              print(f"PASS: {output.stat().st_size} bytes")
+
+          asyncio.run(main())
+          PY
